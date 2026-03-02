@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>DJ Motor Controller Dashboard v2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Tailwind config
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {}
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+    <style>
+        /* Fallback CSS in case Tailwind CDN is blocked */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #111827; 
+            color: white; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            min-height: 100vh;
+        }
+        .container { max-width: 1280px; margin: 0 auto; padding: 0 1rem; }
+        header { background: #1f2937; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-bottom: 1px solid #374151; padding: 1rem 0; }
+        h1 { font-size: 1.5rem; font-weight: bold; background: linear-gradient(to right, #60a5fa, #22d3ee); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        main { padding: 1.5rem 0; }
+        
+        /* Grid system */
+        .grid { display: grid; }
+        .gap-4 { gap: 1rem; }
+        .gap-6 { gap: 1.5rem; }
+        .grid-cols-1 { grid-template-columns: 1fr; }
+        .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+        @media (min-width: 1024px) {
+            .lg\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+            .lg\\:grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+        }
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .md\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 767px) {
+            .grid-cols-2, .grid-cols-4 { grid-template-columns: 1fr; }
+        }
+        
+        /* Card styles */
+        .glass-effect, .card {
+            background: rgba(31, 41, 55, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(75, 85, 99, 0.5);
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .card-shadow { box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .rounded-xl { border-radius: 0.75rem; }
+        .rounded-lg { border-radius: 0.5rem; }
+        .rounded-full { border-radius: 9999px; }
+        
+        /* Padding */
+        .p-2 { padding: 0.5rem; }
+        .p-3 { padding: 0.75rem; }
+        .p-4 { padding: 1rem; }
+        .p-5 { padding: 1.25rem; }
+        .p-6 { padding: 1.5rem; }
+        .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+        .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+        .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+        .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+        
+        /* Margin */
+        .mb-1 { margin-bottom: 0.25rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-3 { margin-bottom: 0.75rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .mb-8 { margin-bottom: 2rem; }
+        .mr-2 { margin-right: 0.5rem; }
+        
+        /* Spacing */
+        .space-y-2 > * + * { margin-top: 0.5rem; }
+        .space-y-3 > * + * { margin-top: 0.75rem; }
+        .space-y-4 > * + * { margin-top: 1rem; }
+        .space-x-2 > * + * { margin-left: 0.5rem; }
+        .space-x-4 > * + * { margin-left: 1rem; }
+        
+        /* Flex */
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .justify-center { justify-content: center; }
+        
+        /* Text */
+        .text-xs { font-size: 0.75rem; }
+        .text-sm { font-size: 0.875rem; }
+        .text-lg { font-size: 1.125rem; }
+        .text-xl { font-size: 1.25rem; }
+        .text-2xl { font-size: 1.5rem; }
+        .text-3xl { font-size: 1.875rem; }
+        .font-semibold { font-weight: 600; }
+        .font-bold { font-weight: 700; }
+        .text-center { text-align: center; }
+        .text-left { text-align: left; }
+        
+        /* Colors */
+        .text-white { color: white; }
+        .text-gray-400 { color: #9ca3af; }
+        .text-green-400 { color: #4ade80; }
+        .text-red-400 { color: #f87171; }
+        .text-blue-400 { color: #60a5fa; }
+        .text-orange-400 { color: #fb923c; }
+        .text-yellow-400 { color: #facc15; }
+        .bg-gray-700 { background: #374151; }
+        .bg-gray-800 { background: #1f2937; }
+        .bg-gray-900 { background: #111827; }
+        .bg-green-600 { background: #16a34a; }
+        .bg-red-600 { background: #dc2626; }
+        .bg-blue-600 { background: #2563eb; }
+        
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        /* Table */
+        table { width: 100%; font-size: 0.875rem; border-collapse: collapse; }
+        thead { background: #1f2937; position: sticky; top: 0; }
+        th { text-align: left; padding: 0.75rem 1rem; font-weight: 600; }
+        td { padding: 0.75rem 1rem; border-top: 1px solid #374151; }
+        tbody tr:hover { background: rgba(31, 41, 55, 0.5); }
+        .divide-y > * + * { border-top: 1px solid #374151; }
+        
+        /* Overflow */
+        .overflow-x-auto { overflow-x: auto; }
+        .max-h-96 { max-height: 24rem; overflow-y: auto; }
+        
+        /* Width/Height */
+        .w-3 { width: 0.75rem; }
+        .w-5 { width: 1.25rem; }
+        .w-6 { width: 1.5rem; }
+        .h-3 { height: 0.75rem; }
+        .h-5 { height: 1.25rem; }
+        .h-6 { height: 1.5rem; }
+        .w-24 { width: 6rem; }
+        .h-2 { height: 0.5rem; }
+        .w-full { width: 100%; }
+        
+        /* Misc */
+        button, select {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+        button:hover { background: #1d4ed8; }
+        select { background: #374151; }
+        
+        .connection-dot { width: 0.75rem; height: 0.75rem; border-radius: 50%; display: inline-block; }
+        .bg-green-500 { background: #22c55e; }
+        .bg-gray-500 { background: #6b7280; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <!-- Header -->
+    <header class="bg-gray-800 shadow-lg border-b border-gray-700">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i data-lucide="settings" class="w-8 h-8 text-blue-400"></i>
+                    <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                        DJ Motor Controller
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <div id="connectionStatus" class="w-3 h-3 rounded-full bg-gray-500"></div>
+                        <span id="connectionText" class="text-sm text-gray-400">Connecting...</span>
+                    </div>
+                    <div class="text-sm text-gray-400" id="lastUpdate">--:--</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-6">
+        <!-- Status Overview Cards -->
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <!-- Motor Status Card -->
+            <div class="glass-effect rounded-lg p-5 card-shadow">
+                <h3 class="text-sm font-semibold mb-4">Motor Status</h3>
+                <div class="text-center">
+                    <div id="motorStatus" class="text-2xl font-bold mb-2">--</div>
+                    <div id="motorPower" class="text-xs text-gray-400">Power: --W</div>
+                </div>
+            </div>
+
+            <!-- Valve Status Card -->
+            <div class="glass-effect rounded-lg p-5 card-shadow">
+                <h3 class="text-sm font-semibold mb-4">Valve Status</h3>
+                <div class="text-center">
+                    <div id="valveStatus" class="text-2xl font-bold mb-2">--</div>
+                    <div id="activeValve" class="text-xs text-gray-400">Active: Valve --</div>
+                </div>
+            </div>
+
+            <!-- Solar Status Card -->
+            <div class="glass-effect rounded-lg p-5 card-shadow">
+                <h3 class="text-sm font-semibold mb-4">Solar Status</h3>
+                <div class="text-center">
+                    <div id="solarVoltage" class="text-2xl font-bold mb-2">--V</div>
+                    <div id="solarCurrent" class="text-xs text-gray-400">Current: --A</div>
+                </div>
+            </div>
+
+            <!-- Battery Status Card -->
+            <div class="glass-effect rounded-lg p-5 card-shadow">
+                <h3 class="text-sm font-semibold mb-4">Battery Status</h3>
+                <div class="text-center">
+                    <div id="batteryVoltage" class="text-2xl font-bold mb-2">--V</div>
+                    <div id="batteryLevel" class="text-xs text-gray-400">Level: --%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Details and Network Cards - 4 Columns -->
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <!-- Primary User Card -->
+            <div class="glass-effect rounded-lg p-5 card-shadow">
+                <h3 class="text-sm font-semibold mb-4">Primary User</h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Name</span>
+                        <span id="primaryUserName" class="text-sm font-semibold">User1</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Overload Resets</span>
+                        <span id="primaryOverloadResets" class="text-sm font-semibold">0/2</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Dry Run Resets</span>
+                        <span id="primaryDryRunResets" class="text-sm font-semibold">0/5</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Status</span>
+                        <div id="primaryUserStatus" class="px-3 py-1 rounded-full text-xs font-semibold bg-green-600">Active</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Secondary User Card -->
+            <div class="glass-effect rounded-lg p-5 card-shadow">
+                <h3 class="text-sm font-semibold mb-4">Secondary User</h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Name</span>
+                        <span id="secondaryUserName" class="text-sm font-semibold">User2</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Overload Resets</span>
+                        <span id="secondaryOverloadResets" class="text-sm font-semibold">0/2</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Dry Run Resets</span>
+                        <span id="secondaryDryRunResets" class="text-sm font-semibold">0/5</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Status</span>
+                        <div id="secondaryUserStatus" class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-600">Inactive</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Signal Card -->
+            <div class="glass-effect rounded-lg p-5 card-shadow">
+                <h3 class="text-sm font-semibold mb-4">Network Signal</h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">SSID</span>
+                        <span id="wifiSSID" class="text-sm font-semibold">--</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Signal Strength</span>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-24 bg-gray-700 rounded-full h-2">
+                                <div id="signalStrength" class="bg-green-500 h-2 rounded-full" style="width: 0%"></div>
+                            </div>
+                            <span id="signalRSSI" class="text-xs font-semibold">-- dBm</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Connection</span>
+                        <div id="wifiConnectionStatus" class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-600">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Next Timer Card -->
+            <div class="glass-effect rounded-lg p-5 card-shadow">
+                <h3 class="text-sm font-semibold mb-4">Next Timer</h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Timer Name</span>
+                        <span id="nextTimerName" class="text-sm font-semibold">--</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Start Time</span>
+                        <span id="nextTimerStart" class="text-sm font-semibold">--:--</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Duration</span>
+                        <span id="nextTimerDuration" class="text-sm font-semibold">-- min</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Countdown</span>
+                        <span id="nextTimerCountdown" class="text-sm font-semibold">--:--:--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Protection Status -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <!-- Protection Status Card -->
+            <div class="glass-effect rounded-lg p-5 card-shadow">
+                <h3 class="text-sm font-semibold mb-4">Protection Status</h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Overload</span>
+                        <div id="overloadStatus" class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-600">--</div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Dry Run</span>
+                        <div id="dryRunStatus" class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-600">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Environmental Status Card -->
+            <div class="glass-effect rounded-lg p-5 card-shadow">
+                <h3 class="text-sm font-semibold mb-4">Environmental</h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Rain</span>
+                        <div id="rainStatus" class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-600">--</div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">Mode</span>
+                        <div id="systemMode" class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-600">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Logs -->
+        <div class="glass-effect rounded-xl p-6 card-shadow mb-8">
+            <h3 class="text-lg font-semibold mb-4 flex items-center justify-between">
+                <div class="flex items-center">
+                    <i data-lucide="file-text" class="w-6 h-6 mr-2 text-indigo-400"></i>
+                    System Logs
+                </div>
+                <div class="flex space-x-2">
+                    <button id="clearLogsBtn" class="text-sm bg-red-600 hover:bg-red-700 px-3 py-1 rounded transition-colors">
+                        Clear Logs
+                    </button>
+                    <button id="exportLogsBtn" class="text-sm bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded transition-colors">
+                        Export Logs
+                    </button>
+                </div>
+            </h3>
+            <div class="mb-4">
+                <div class="flex items-center space-x-4 mb-4">
+                    <div class="flex items-center space-x-2">
+                        <label class="text-sm text-gray-400">Filter:</label>
+                        <select id="logFilter" class="bg-gray-700 text-white px-3 py-1 rounded text-sm">
+                            <option value="all">All Logs</option>
+                            <option value="motor">Motor</option>
+                            <option value="valve">Valve</option>
+                            <option value="protection">Protection</option>
+                            <option value="environment">Environment</option>
+                            <option value="system">System</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-sm text-gray-400">Status:</label>
+                        <select id="statusFilter" class="bg-gray-700 text-white px-3 py-1 rounded text-sm">
+                            <option value="all">All Status</option>
+                            <option value="success">Success</option>
+                            <option value="warning">Warning</option>
+                            <option value="error">Error</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="overflow-x-auto max-h-96">
+                <table class="w-full text-sm">
+                    <thead class="sticky top-0 bg-gray-800">
+                        <tr class="border-b border-gray-700">
+                            <th class="text-left py-3 px-4 font-semibold">Time</th>
+                            <th class="text-left py-3 px-4 font-semibold">Type</th>
+                            <th class="text-left py-3 px-4 font-semibold">Message</th>
+                            <th class="text-left py-3 px-4 font-semibold">Status</th>
+                            <th class="text-left py-3 px-4 font-semibold">User</th>
+                            <th class="text-left py-3 px-4 font-semibold">Source</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTable" class="divide-y divide-gray-700">
+                        <!-- Logs will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 flex items-center justify-between text-sm text-gray-400">
+                <span id="logCount">Total logs: 0</span>
+                <span id="lastLogTime">Last log: --</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Global variables
+        let deviceData = {};
+        let logs = [];
+        let supabase = null;
+        let subscription = null;
+
+        // Initialize Supabase connection
+        function initializeSupabase() {
+            try {
+                // Replace with your actual Supabase credentials
+                const supabaseUrl = 'https://myapnwghdoxktiglsipu.supabase.co';
+                const supabaseKey = 'sb_publishable_QEWRxeIV2-otyxffZi_CYg_7jWboffE';
+                
+                if (!supabaseUrl || !supabaseKey) {
+                    throw new Error('Supabase credentials missing');
+                }
+                
+                supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+                console.log('Supabase client created');
+                
+                // Subscribe to real-time device status updates
+                subscription = supabase
+                    .channel('device_status_changes')
+                    .on('postgres_changes', 
+                        { 
+                            event: 'UPDATE', 
+                            schema: 'public', 
+                            table: 'device_status',
+                            filter: 'device_id=eq.device_001'
+                        }, 
+                        (payload) => {
+                            console.log('Real-time update received:', payload);
+                            deviceData = payload.new;
+                            updateUI(deviceData);
+                            addLog('SYSTEM', 'Device status updated', 'INFO', 'System', 'Real-time');
+                        }
+                    )
+                    .subscribe((status) => {
+                        if (status === 'SUBSCRIBED') {
+                            console.log('Device status subscription active');
+                        } else if (status === 'CHANNEL_ERROR') {
+                            console.error('Device status subscription error');
+                            addLog('SYSTEM', 'Device status subscription failed', 'ERROR', 'System', 'Dashboard');
+                        }
+                    });
+                
+                // Subscribe to schedules table for timer updates
+                supabase
+                    .channel('schedules_changes')
+                    .on('postgres_changes', 
+                        { 
+                            event: '*', 
+                            schema: 'public', 
+                            table: 'timers'
+                        }, 
+                        (payload) => {
+                            console.log('Schedule update received:', payload);
+                            fetchSchedules();
+                            addLog('SCHEDULE', `Timer ${payload.eventType}: ${payload.new?.id || payload.old?.id}`, 'INFO', 'System', 'Real-time');
+                        }
+                    )
+                    .subscribe((status) => {
+                        if (status === 'SUBSCRIBED') {
+                            console.log('Timers subscription active');
+                        }
+                    });
+                
+                // Subscribe to logs table for real-time log updates
+                supabase
+                    .channel('logs_changes')
+                    .on('postgres_changes', 
+                        { 
+                            event: 'INSERT', 
+                            schema: 'public', 
+                            table: 'logs'
+                        }, 
+                        (payload) => {
+                            console.log('Log update received:', payload);
+                            addLog(payload.new.log_type || 'SYSTEM', payload.new.message, payload.new.status || 'INFO', payload.new.user_type || 'System', 'Device');
+                        }
+                    )
+                    .subscribe((status) => {
+                        if (status === 'SUBSCRIBED') {
+                            console.log('Logs subscription active');
+                        }
+                    });
+                
+                // Fetch initial data
+                fetchInitialData();
+                
+            } catch (error) {
+                console.error('Supabase initialization error:', error);
+                addLog('SYSTEM', 'Supabase connection failed', 'ERROR', 'System', 'Dashboard');
+                startMockData();
+            }
+        }
+
+        // Fetch initial device data
+        async function fetchInitialData() {
+            try {
+                // Fetch device status
+                const { data: deviceData, error: deviceError } = await supabase
+                    .from('device_status')
+                    .select('*')
+                    .eq('device_id', 'device_001')
+                    .single();
+                
+                if (deviceError) {
+                    console.error('Error fetching device data:', deviceError);
+                    addLog('SYSTEM', 'Failed to fetch device data', 'ERROR', 'System', 'Dashboard');
+                } else if (deviceData) {
+                    updateUI(deviceData);
+                    addLog('SYSTEM', 'Connected to device', 'SUCCESS', 'System', 'Supabase');
+                }
+                
+                // Fetch schedules
+                await fetchSchedules();
+                
+                // Fetch user presets
+                await fetchUserPresets();
+                
+                // Fetch recent logs
+                await fetchRecentLogs();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                addLog('SYSTEM', 'Connection error', 'ERROR', 'System', 'Dashboard');
+                // Fallback to mock data
+                startMockData();
+            }
+        }
+
+        // Fetch schedules from database
+        async function fetchSchedules() {
+            try {
+                const { data: schedules, error } = await supabase
+                    .from('timers')
+                    .select('*')
+                    .eq('device_id', 'device_001')
+                    .eq('active', true)
+                    .order('on_time', { ascending: true });
+                
+                if (error) {
+                    console.error('Error fetching schedules:', error);
+                    addLog('SYSTEM', 'Failed to fetch timers', 'ERROR', 'System', 'Dashboard');
+                    return;
+                }
+                
+                updateNextTimer(schedules);
+                addLog('SYSTEM', `Loaded ${schedules.length} active timers`, 'SUCCESS', 'System', 'Supabase');
+            } catch (error) {
+                console.error('Error fetching schedules:', error);
+            }
+        }
+
+        // Fetch user presets from database
+        async function fetchUserPresets() {
+            try {
+                const { data: presets, error } = await supabase
+                    .from('user_presets')
+                    .select('*')
+                    .eq('user_id', 'user1');
+                
+                if (error) {
+                    console.error('Error fetching user presets:', error);
+                    addLog('SYSTEM', 'Failed to fetch user presets', 'ERROR', 'System', 'Dashboard');
+                    return;
+                }
+                
+                updateUserPresets(presets);
+                addLog('SYSTEM', `Loaded ${presets.length} user presets`, 'SUCCESS', 'System', 'Supabase');
+            } catch (error) {
+                console.error('Error fetching user presets:', error);
+            }
+        }
+
+        // Fetch recent logs from database
+        async function fetchRecentLogs() {
+            try {
+                const { data: dbLogs, error } = await supabase
+                    .from('logs')
+                    .select('*')
+                    .eq('device_id', 'device_001')
+                    .order('created_at', { ascending: false })
+                    .limit(50);
+                
+                if (error) {
+                    console.error('Error fetching logs:', error);
+                    addLog('SYSTEM', 'Failed to fetch logs', 'ERROR', 'System', 'Dashboard');
+                    return;
+                }
+                
+                // Clear existing logs and add database logs
+                logs = [];
+                const logsTable = document.getElementById('logsTable');
+                logsTable.innerHTML = '';
+                
+                // Add logs in reverse order (newest first)
+                dbLogs.reverse().forEach(log => {
+                    addLog(log.log_type || 'SYSTEM', log.message, log.status || 'INFO', log.log_user || 'System', log.source || 'Device');
+                });
+                
+                addLog('SYSTEM', `Loaded ${dbLogs.length} recent logs`, 'SUCCESS', 'System', 'Supabase');
+            } catch (error) {
+                console.error('Error fetching logs:', error);
+            }
+        }
+
+        // Update user presets display
+        function updateUserPresets(presets) {
+            // Update primary user presets
+            const primaryPresets = presets.filter(p => p.user_id === 'user1');
+            const secondaryPresets = presets.filter(p => p.user_id === 'user2');
+            
+            // You can display these in the UI if needed
+            console.log('Primary User Presets:', primaryPresets);
+            console.log('Secondary User Presets:', secondaryPresets);
+        }
+
+        // Fallback mock data for demonstration
+        function startMockData() {
+            addLog('SYSTEM', 'Using demo mode - no real connection', 'WARNING', 'System', 'Dashboard');
+            setInterval(simulateDataUpdate, 2000);
+        }
+
+        // Update UI with device data
+        function updateUI(data) {
+            deviceData = data;
+            
+            // Update connection status
+            const statusDot = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            statusDot.className = 'w-3 h-3 rounded-full bg-green-500 animate-pulse';
+            statusText.textContent = 'Connected';
+            
+            // Update last update time
+            const lastUpdate = document.getElementById('lastUpdate');
+            lastUpdate.textContent = new Date().toLocaleTimeString();
+
+            // Update motor status
+            const motorStatus = document.getElementById('motorStatus');
+            const motorPower = document.getElementById('motorPower');
+            const isMotorOn = data.motor_on || false;
+            motorStatus.textContent = isMotorOn ? 'RUNNING' : 'STOPPED';
+            motorStatus.className = isMotorOn ? 'text-3xl font-bold mb-2 text-green-400' : 'text-3xl font-bold mb-2 text-red-400';
+            motorPower.textContent = `Power: ${(data.power || 0)}W`;
+
+            // Update valve status
+            const valveStatus = document.getElementById('valveStatus');
+            const activeValve = document.getElementById('activeValve');
+            let activeValveNum = 0;
+            for (let i = 1; i <= 10; i++) {
+                if (data[`valve${i}`]) {
+                    activeValveNum = i;
+                    break;
+                }
+            }
+            valveStatus.textContent = activeValveNum > 0 ? 'OPEN' : 'CLOSED';
+            valveStatus.className = activeValveNum > 0 ? 'text-3xl font-bold mb-2 text-blue-400' : 'text-3xl font-bold mb-2 text-gray-400';
+            activeValve.textContent = `Active: Valve ${activeValveNum}`;
+
+            // Update solar status
+            const solarVoltage = document.getElementById('solarVoltage');
+            const solarCurrent = document.getElementById('solarCurrent');
+            solarVoltage.textContent = `${(data.solar_volt || 0).toFixed(1)}V`;
+            solarCurrent.textContent = `Current: ${(data.solar_current || 0).toFixed(1)}A`;
+
+            // Update battery status
+            const batteryVoltage = document.getElementById('batteryVoltage');
+            const batteryLevel = document.getElementById('batteryLevel');
+            const batteryVolts = data.battery_volt || 0;
+            const batteryPercent = Math.min(100, Math.max(0, ((batteryVolts - 10) / 2) * 100));
+            batteryVoltage.textContent = `${batteryVolts.toFixed(1)}V`;
+            batteryLevel.textContent = `Level: ${batteryPercent.toFixed(0)}%`;
+
+            // Update protection status
+            const overloadStatus = document.getElementById('overloadStatus');
+            const dryRunStatus = document.getElementById('dryRunStatus');
+            const isOverload = data.is_overload || false;
+            const isDryRun = data.is_dry_run || false;
+            
+            overloadStatus.textContent = isOverload ? 'TRIP' : 'OK';
+            overloadStatus.className = isOverload ? 'px-3 py-1 rounded-full text-xs font-semibold bg-red-600' : 'px-3 py-1 rounded-full text-xs font-semibold bg-green-600';
+            
+            dryRunStatus.textContent = isDryRun ? 'TRIP' : 'OK';
+            dryRunStatus.className = isDryRun ? 'px-3 py-1 rounded-full text-xs font-semibold bg-orange-600' : 'px-3 py-1 rounded-full text-xs font-semibold bg-green-600';
+
+            // Update environmental status
+            const rainStatus = document.getElementById('rainStatus');
+            const systemMode = document.getElementById('systemMode');
+            const isRaining = data.is_rain || false;
+            const mode = data.mode || 'LOCAL';
+            
+            rainStatus.textContent = isRaining ? 'RAINING' : 'CLEAR';
+            rainStatus.className = isRaining ? 'px-3 py-1 rounded-full text-xs font-semibold bg-blue-600' : 'px-3 py-1 rounded-full text-xs font-semibold bg-green-600';
+            
+            systemMode.textContent = mode;
+            systemMode.className = mode === 'AUTO' ? 'px-3 py-1 rounded-full text-xs font-semibold bg-green-600' : 'px-3 py-1 rounded-full text-xs font-semibold bg-blue-600';
+
+            // Update user details
+            updateUserDetails(data);
+
+            // Update network signal
+            updateNetworkSignal(data);
+        }
+
+        // Update user details
+        function updateUserDetails(data) {
+            // Primary User (User1)
+            document.getElementById('primaryUserName').textContent = 'User1';
+            document.getElementById('primaryOverloadResets').textContent = `${data.user1_overload_resets || 0}/2`;
+            document.getElementById('primaryDryRunResets').textContent = `${data.user1_dryrun_resets || 0}/5`;
+            
+            const primaryStatus = document.getElementById('primaryUserStatus');
+            // Check if User1 is active based on mode and other logic
+            const isUser1Active = data.mode === 'AUTO' || data.user1_overload_resets < 2 || data.user1_dryrun_resets < 5;
+            primaryStatus.textContent = isUser1Active ? 'Active' : 'Inactive';
+            primaryStatus.className = isUser1Active ? 'px-3 py-1 rounded-full text-xs font-semibold bg-green-600' : 'px-3 py-1 rounded-full text-xs font-semibold bg-gray-600';
+
+            // Secondary User (User2)
+            document.getElementById('secondaryUserName').textContent = 'User2';
+            document.getElementById('secondaryOverloadResets').textContent = `${data.user2_overload_resets || 0}/2`;
+            document.getElementById('secondaryDryRunResets').textContent = `${data.user2_dryrun_resets || 0}/5`;
+            
+            const secondaryStatus = document.getElementById('secondaryUserStatus');
+            // Check if User2 is active
+            const isUser2Active = data.mode === 'AUTO' && (data.user2_overload_resets < 2 || data.user2_dryrun_resets < 5);
+            secondaryStatus.textContent = isUser2Active ? 'Active' : 'Inactive';
+            secondaryStatus.className = isUser2Active ? 'px-3 py-1 rounded-full text-xs font-semibold bg-green-600' : 'px-3 py-1 rounded-full text-xs font-semibold bg-gray-600';
+        }
+
+        // Update network signal
+        function updateNetworkSignal(data) {
+            const wifiSSID = document.getElementById('wifiSSID');
+            const signalStrength = document.getElementById('signalStrength');
+            const signalRSSI = document.getElementById('signalRSSI');
+            const connectionStatus = document.getElementById('connectionStatus');
+
+            wifiSSID.textContent = data.wifi_ssid || 'Unknown Network';
+            
+            const rssi = data.wifi_rssi || -70;
+            signalRSSI.textContent = `${rssi} dBm`;
+            
+            // Calculate signal strength percentage
+            let percentage = 0;
+            if (rssi > -50) percentage = 100;
+            else if (rssi > -60) percentage = 80;
+            else if (rssi > -70) percentage = 60;
+            else if (rssi > -80) percentage = 40;
+            else percentage = 20;
+            
+            signalStrength.style.width = `${percentage}%`;
+            
+            // Update signal bar color
+            if (percentage > 60) {
+                signalStrength.className = 'bg-green-500 h-2 rounded-full';
+            } else if (percentage > 40) {
+                signalStrength.className = 'bg-yellow-500 h-2 rounded-full';
+            } else {
+                signalStrength.className = 'bg-red-500 h-2 rounded-full';
+            }
+            
+            // Update connection status
+            if (rssi > -80) {
+                connectionStatus.textContent = 'Good';
+                connectionStatus.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-green-600';
+            } else if (rssi > -90) {
+                connectionStatus.textContent = 'Fair';
+                connectionStatus.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-yellow-600';
+            } else {
+                connectionStatus.textContent = 'Poor';
+                connectionStatus.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-red-600';
+            }
+        }
+
+        // Update next timer
+        function updateNextTimer(timers) {
+            const nextTimerName = document.getElementById('nextTimerName');
+            const nextTimerStart = document.getElementById('nextTimerStart');
+            const nextTimerDuration = document.getElementById('nextTimerDuration');
+            const nextTimerCountdown = document.getElementById('nextTimerCountdown');
+
+            if (!timers || timers.length === 0) {
+                nextTimerName.textContent = 'No active timers';
+                nextTimerStart.textContent = '--:--';
+                nextTimerDuration.textContent = '-- min';
+                nextTimerCountdown.textContent = '--:--:--';
+                return;
+            }
+
+            // Find next active timer for today
+            const now = new Date();
+            const currentTime = now.toTimeString().split(' ')[0]; // HH:MM:SS format
+            
+            const upcomingTimers = timers.filter(timer => {
+                const timerTime = timer.on_time; // Time format: HH:MM:SS
+                return timerTime > currentTime;
+            });
+
+            // If no timers left today, show tomorrow's first timer
+            let nextTimer = null;
+            if (upcomingTimers.length > 0) {
+                nextTimer = upcomingTimers[0];
+            } else if (timers.length > 0) {
+                // Show first timer of next day
+                nextTimer = timers.sort((a, b) => a.on_time.localeCompare(b.on_time))[0];
+            }
+
+            if (!nextTimer) {
+                nextTimerName.textContent = 'No upcoming timers';
+                nextTimerStart.textContent = '--:--';
+                nextTimerDuration.textContent = '-- min';
+                nextTimerCountdown.textContent = '--:--:--';
+                return;
+            }
+            
+            nextTimerName.textContent = `Timer ${nextTimer.id || 'Unknown'}`;
+            nextTimerStart.textContent = nextTimer.on_time.substring(0, 5); // HH:MM format
+            
+            const duration = nextTimer.duration_minutes || 30;
+            nextTimerDuration.textContent = `${duration} min`;
+            
+            // Calculate countdown
+            const timerDateTime = new Date();
+            const [hours, minutes, seconds] = nextTimer.on_time.split(':').map(Number);
+            
+            if (upcomingTimers.length > 0) {
+                // Timer is today
+                timerDateTime.setHours(hours, minutes, seconds || 0, 0);
+            } else {
+                // Timer is tomorrow
+                timerDateTime.setDate(timerDateTime.getDate() + 1);
+                timerDateTime.setHours(hours, minutes, seconds || 0, 0);
+            }
+            
+            const diff = timerDateTime - now;
+            if (diff > 0) {
+                const countdownHours = Math.floor(diff / (1000 * 60 * 60));
+                const countdownMinutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const countdownSeconds = Math.floor((diff % (1000 * 60)) / 1000);
+                
+                nextTimerCountdown.textContent = `${countdownHours.toString().padStart(2, '0')}:${countdownMinutes.toString().padStart(2, '0')}:${countdownSeconds.toString().padStart(2, '0')}`;
+            } else {
+                nextTimerCountdown.textContent = 'Running';
+            }
+        }
+
+        // Add log entry with enhanced data
+        function addLog(type, message, status, user = 'System', source = 'Dashboard') {
+            const logsTable = document.getElementById('logsTable');
+            const row = document.createElement('tr');
+            row.className = 'border-b border-gray-800 hover:bg-gray-800';
+            
+            const time = new Date().toLocaleTimeString();
+            const statusColor = status === 'ERROR' ? 'text-red-400' : status === 'WARNING' ? 'text-yellow-400' : 'text-green-400';
+            
+            row.innerHTML = `
+                <td class="py-3 px-4 text-gray-400">${time}</td>
+                <td class="py-3 px-4"><span class="px-2 py-1 rounded text-xs font-semibold ${getTypeColor(type)}">${type}</span></td>
+                <td class="py-3 px-4">${message}</td>
+                <td class="py-3 px-4"><span class="px-2 py-1 rounded text-xs font-semibold ${statusColor}">${status}</span></td>
+                <td class="py-3 px-4 text-gray-300">${user}</td>
+                <td class="py-3 px-4 text-gray-300">${source}</td>
+            `;
+            
+            logsTable.insertBefore(row, logsTable.firstChild);
+            logs.unshift({ time, type, message, status, user, source });
+            
+            // Update log count and last log time
+            updateLogInfo();
+            
+            // Keep only last 100 logs
+            if (logs.length > 100) {
+                logs.pop();
+                logsTable.removeChild(logsTable.lastChild);
+            }
+        }
+
+        function getTypeColor(type) {
+            const colors = {
+                'MOTOR': 'bg-blue-600',
+                'VALVE': 'bg-cyan-600',
+                'PROTECTION': 'bg-red-600',
+                'ENVIRONMENT': 'bg-yellow-600',
+                'SYSTEM': 'bg-purple-600',
+                'OVERLOAD': 'bg-red-700',
+                'DRY_RUN': 'bg-orange-700',
+                'SOLAR': 'bg-yellow-600',
+                'BATTERY': 'bg-green-600'
+            };
+            return colors[type] || 'bg-gray-600';
+        }
+
+        // Update log information
+        function updateLogInfo() {
+            const logCount = document.getElementById('logCount');
+            const lastLogTime = document.getElementById('lastLogTime');
+            
+            logCount.textContent = `Total logs: ${logs.length}`;
+            lastLogTime.textContent = `Last log: ${logs.length > 0 ? logs[0].time : '--'}`;
+        }
+
+        // Filter logs
+        function filterLogs() {
+            const typeFilter = document.getElementById('logFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            const logsTable = document.getElementById('logsTable');
+            
+            // Clear current logs
+            logsTable.innerHTML = '';
+            
+            // Filter and display logs
+            const filteredLogs = logs.filter(log => {
+                const typeMatch = typeFilter === 'all' || log.type.toLowerCase() === typeFilter.toLowerCase();
+                const statusMatch = statusFilter === 'all' || log.status.toLowerCase() === statusFilter.toLowerCase();
+                return typeMatch && statusMatch;
+            });
+            
+            // Rebuild table with filtered logs
+            filteredLogs.forEach(log => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-800 hover:bg-gray-800';
+                
+                const statusColor = log.status === 'ERROR' ? 'text-red-400' : log.status === 'WARNING' ? 'text-yellow-400' : 'text-green-400';
+                
+                row.innerHTML = `
+                    <td class="py-3 px-4 text-gray-400">${log.time}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-1 rounded text-xs font-semibold ${getTypeColor(log.type)}">${log.type}</span></td>
+                    <td class="py-3 px-4">${log.message}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-1 rounded text-xs font-semibold ${statusColor}">${log.status}</span></td>
+                    <td class="py-3 px-4 text-gray-300">${log.user}</td>
+                    <td class="py-3 px-4 text-gray-300">${log.source}</td>
+                `;
+                
+                logsTable.appendChild(row);
+            });
+        }
+
+        // Export logs
+        function exportLogs() {
+            const typeFilter = document.getElementById('logFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            
+            const filteredLogs = logs.filter(log => {
+                const typeMatch = typeFilter === 'all' || log.type.toLowerCase() === typeFilter.toLowerCase();
+                const statusMatch = statusFilter === 'all' || log.status.toLowerCase() === statusFilter.toLowerCase();
+                return typeMatch && statusMatch;
+            });
+            
+            const csvContent = [
+                ['Time', 'Type', 'Message', 'Status', 'User', 'Source'],
+                ...filteredLogs.map(log => [log.time, log.type, log.message, log.status, log.user, log.source])
+            ].map(row => row.join(',')).join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `motor_controller_logs_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            addLog('SYSTEM', 'Logs exported to CSV', 'SUCCESS');
+        }
+
+        // Event listeners
+        document.getElementById('clearLogsBtn').addEventListener('click', () => {
+            const logsTable = document.getElementById('logsTable');
+            logsTable.innerHTML = '';
+            logs = [];
+            updateLogInfo();
+            addLog('SYSTEM', 'Logs cleared', 'INFO');
+        });
+
+        document.getElementById('exportLogsBtn').addEventListener('click', exportLogs);
+        document.getElementById('logFilter').addEventListener('change', filterLogs);
+        document.getElementById('statusFilter').addEventListener('change', filterLogs);
+
+        // Mock data simulation for demo mode
+        function simulateDataUpdate() {
+            const mockData = {
+                motor_on: Math.random() > 0.5,
+                power: Math.floor(Math.random() * 2000),
+                solar_volt: 12 + Math.random() * 8,
+                solar_current: Math.random() * 10,
+                battery_volt: 11 + Math.random() * 4,
+                is_overload: Math.random() > 0.9,
+                is_dry_run: Math.random() > 0.9,
+                is_rain: Math.random() > 0.8,
+                mode: Math.random() > 0.5 ? 'AUTO' : 'LOCAL',
+                valve1: Math.random() > 0.7,
+                valve2: Math.random() > 0.7,
+                valve3: Math.random() > 0.7,
+                last_updated: new Date().toISOString(),
+                
+                // User details
+                current_user: Math.random() > 0.5 ? 'User1' : 'User2',
+                user1_overload_resets: Math.floor(Math.random() * 3),
+                user1_dryrun_resets: Math.floor(Math.random() * 6),
+                user2_overload_resets: Math.floor(Math.random() * 3),
+                user2_dryrun_resets: Math.floor(Math.random() * 6),
+                
+                // Network signal
+                wifi_ssid: 'DJ_Motor_Controller',
+                wifi_rssi: Math.floor(Math.random() * 40) - 90,
+                
+                // Timer
+                timer_name: ['Morning Irrigation', 'Evening Irrigation', 'Scheduled Watering'][Math.floor(Math.random() * 3)]
+            };
+            
+            updateUI(mockData);
+            
+            // Simulate random log entries
+            if (Math.random() > 0.7) {
+                const logTypes = ['MOTOR', 'VALVE', 'PROTECTION', 'ENVIRONMENT', 'SYSTEM', 'OVERLOAD', 'DRY_RUN', 'SOLAR', 'BATTERY'];
+                const messages = [
+                    'Motor status changed',
+                    'Valve operation completed',
+                    'Overload protection triggered',
+                    'Rain detected',
+                    'System check completed',
+                    'Motor overload trip',
+                    'Dry run condition detected',
+                    'Solar voltage normal',
+                    'Battery voltage low'
+                ];
+                const statuses = ['SUCCESS', 'WARNING', 'ERROR'];
+                const users = ['User1', 'User2', 'System'];
+                const sources = ['Device', 'Dashboard', 'Auto', 'Web'];
+                
+                const randomType = logTypes[Math.floor(Math.random() * logTypes.length)];
+                const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+                const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+                const randomUser = users[Math.floor(Math.random() * users.length)];
+                const randomSource = sources[Math.floor(Math.random() * sources.length)];
+                
+                addLog(randomType, randomMessage, randomStatus, randomUser, randomSource);
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Lucide icons with error handling
+            try {
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                    console.log('Lucide icons initialized');
+                } else {
+                    console.warn('Lucide library not loaded');
+                }
+            } catch (error) {
+                console.error('Error initializing Lucide icons:', error);
+            }
+            
+            // Add initial logs
+            addLog('SYSTEM', 'Dashboard initialized', 'SUCCESS', 'System', 'Web');
+            
+            // Try to connect to Supabase
+            try {
+                if (typeof window.supabase !== 'undefined') {
+                    initializeSupabase();
+                } else {
+                    addLog('SYSTEM', 'Supabase library not loaded, using demo mode', 'WARNING', 'System', 'Dashboard');
+                    startMockData();
+                }
+            } catch (error) {
+                console.error('Supabase initialization error:', error);
+                addLog('SYSTEM', 'Supabase connection failed, using demo mode', 'ERROR', 'System', 'Dashboard');
+                startMockData();
+            }
+        });
+    </script>
+</body>
+</html>
