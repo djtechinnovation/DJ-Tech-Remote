@@ -501,7 +501,9 @@
                         (payload) => {
                             console.log('Schedule update received:', payload);
                             fetchSchedules();
-                            addLog('SCHEDULE', `Timer ${payload.eventType}: ${payload.new?.id || payload.old?.id}`, 'INFO', 'System', 'Real-time');
+                            const eventType = payload.eventType === 'INSERT' ? 'created' : 
+                                            payload.eventType === 'UPDATE' ? 'updated' : 'deleted';
+                            addLog('SCHEDULE', `Timer ${eventType}: ${payload.new?.id || payload.old?.id}`, 'INFO', 'System', 'Real-time');
                         }
                     )
                     .subscribe((status) => {
@@ -591,6 +593,7 @@
                     return;
                 }
                 
+                console.log(`📅 Fetched ${schedules.length} active timers:`, schedules);
                 updateNextTimer(schedules);
                 addLog('SYSTEM', `Loaded ${schedules.length} active timers`, 'SUCCESS', 'System', 'Supabase');
             } catch (error) {
@@ -818,6 +821,10 @@
             }
         }
 
+        // Global variable to store timer interval
+        let timerCountdownInterval = null;
+        let currentNextTimer = null;
+
         // Update next timer
         function updateNextTimer(timers) {
             const nextTimerName = document.getElementById('nextTimerName');
@@ -825,11 +832,18 @@
             const nextTimerDuration = document.getElementById('nextTimerDuration');
             const nextTimerCountdown = document.getElementById('nextTimerCountdown');
 
+            // Clear existing interval
+            if (timerCountdownInterval) {
+                clearInterval(timerCountdownInterval);
+                timerCountdownInterval = null;
+            }
+
             if (!timers || timers.length === 0) {
                 nextTimerName.textContent = 'No active timers';
                 nextTimerStart.textContent = '--:--';
                 nextTimerDuration.textContent = '-- min';
                 nextTimerCountdown.textContent = '--:--:--';
+                currentNextTimer = null;
                 return;
             }
 
@@ -856,8 +870,15 @@
                 nextTimerStart.textContent = '--:--';
                 nextTimerDuration.textContent = '-- min';
                 nextTimerCountdown.textContent = '--:--:--';
+                currentNextTimer = null;
                 return;
             }
+            
+            // Store current timer
+            currentNextTimer = {
+                timer: nextTimer,
+                isTomorrow: upcomingTimers.length === 0
+            };
             
             nextTimerName.textContent = `Timer ${nextTimer.id || 'Unknown'}`;
             nextTimerStart.textContent = nextTimer.on_time.substring(0, 5); // HH:MM format
@@ -865,29 +886,46 @@
             const duration = nextTimer.duration_minutes || 30;
             nextTimerDuration.textContent = `${duration} min`;
             
-            // Calculate countdown
-            const timerDateTime = new Date();
-            const [hours, minutes, seconds] = nextTimer.on_time.split(':').map(Number);
-            
-            if (upcomingTimers.length > 0) {
-                // Timer is today
-                timerDateTime.setHours(hours, minutes, seconds || 0, 0);
-            } else {
-                // Timer is tomorrow
-                timerDateTime.setDate(timerDateTime.getDate() + 1);
-                timerDateTime.setHours(hours, minutes, seconds || 0, 0);
-            }
-            
-            const diff = timerDateTime - now;
-            if (diff > 0) {
-                const countdownHours = Math.floor(diff / (1000 * 60 * 60));
-                const countdownMinutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                const countdownSeconds = Math.floor((diff % (1000 * 60)) / 1000);
+            // Function to update countdown
+            function updateCountdown() {
+                if (!currentNextTimer) return;
                 
-                nextTimerCountdown.textContent = `${countdownHours.toString().padStart(2, '0')}:${countdownMinutes.toString().padStart(2, '0')}:${countdownSeconds.toString().padStart(2, '0')}`;
-            } else {
-                nextTimerCountdown.textContent = 'Running';
+                const now = new Date();
+                const timerDateTime = new Date();
+                const [hours, minutes, seconds] = currentNextTimer.timer.on_time.split(':').map(Number);
+                
+                if (!currentNextTimer.isTomorrow) {
+                    // Timer is today
+                    timerDateTime.setHours(hours, minutes, seconds || 0, 0);
+                } else {
+                    // Timer is tomorrow
+                    timerDateTime.setDate(timerDateTime.getDate() + 1);
+                    timerDateTime.setHours(hours, minutes, seconds || 0, 0);
+                }
+                
+                const diff = timerDateTime - now;
+                if (diff > 0) {
+                    const countdownHours = Math.floor(diff / (1000 * 60 * 60));
+                    const countdownMinutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const countdownSeconds = Math.floor((diff % (1000 * 60)) / 1000);
+                    
+                    nextTimerCountdown.textContent = `${countdownHours.toString().padStart(2, '0')}:${countdownMinutes.toString().padStart(2, '0')}:${countdownSeconds.toString().padStart(2, '0')}`;
+                } else {
+                    nextTimerCountdown.textContent = 'Running';
+                    // Timer has started, refresh timer list
+                    if (timerCountdownInterval) {
+                        clearInterval(timerCountdownInterval);
+                        timerCountdownInterval = null;
+                    }
+                    fetchSchedules(); // Refresh to get next timer
+                }
             }
+            
+            // Initial countdown update
+            updateCountdown();
+            
+            // Update countdown every second
+            timerCountdownInterval = setInterval(updateCountdown, 1000);
         }
 
         // Add log entry with enhanced data
